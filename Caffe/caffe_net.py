@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from . import caffe_pb2 as pb
+from caffe.proto import caffe_pb2 as pb
 import google.protobuf.text_format as text_format
 import numpy as np
 from .layer_param import Layer_param

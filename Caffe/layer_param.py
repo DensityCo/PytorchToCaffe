@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from . import caffe_pb2 as pb
+from caffe.proto import caffe_pb2 as pb
 import numpy as np
 
 def pair_process(item,strict_one=False):
@@ -54,8 +54,8 @@ class Layer_param():
             bias_filler_type: the bias filler type
         Returns:
         """
-        if self.type!='Convolution':
-            raise TypeError('the layer type must be Convolution if you want set conv param')
+        if self.type!='Convolution' and self.type!='Deconvolution':
+            raise TypeError('the layer type must be Convolution/Deconvolution if you want set conv param')
         conv_param=pb.ConvolutionParameter()
         conv_param.num_output=num_output
         conv_param.kernel_size.extend(pair_reduce(kernel_size))

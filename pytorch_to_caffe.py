@@ -86,7 +86,26 @@ def _conv2d(raw,input, weight, bias=None, stride=1, padding=0, dilation=1, group
     layer=caffe_net.Layer_param(name=name, type='Convolution',
                                 bottom=[log.blobs(input)], top=[log.blobs(x)])
     layer.conv_param(x.size()[1],weight.size()[2:],stride=_pair(stride),
-                     pad=_pair(padding),dilation=_pair(dilation),bias_term=bias is not None)
+                     pad=_pair(padding),groups=groups,dilation=_pair(dilation),bias_term=bias is not None)
+    if bias is not None:
+        layer.add_data(weight.cpu().data.numpy(),bias.cpu().data.numpy())
+    else:
+        layer.param.convolution_param.bias_term=False
+        layer.add_data(weight.cpu().data.numpy())
+    log.cnet.add_layer(layer)
+    return x
+
+def _conv_transpose2d(raw,input, weight, bias=None, stride=1, padding=0, output_padding=0, groups=1, dilation=1):
+    if (output_padding!=0) and (output_padding!=(0,0)):
+        raise NotImplemented("output_padding: != 0 not implemented in caffe")
+    x=raw(input,weight,bias,stride,padding,output_padding,groups,dilation)
+    name=log.add_layer(name='deconv')
+    log.add_blobs([x],name='deconv_blob')
+    layer=caffe_net.Layer_param(name=name, type='Deconvolution',
+                                bottom=[log.blobs(input)],
+                                top=[log.blobs(x)])
+    layer.conv_param(x.size()[1],weight.size()[2:],stride=_pair(stride),
+                     pad=_pair(padding),groups=groups,dilation=_pair(dilation),bias_term=bias is not None)
     if bias is not None:
         layer.add_data(weight.cpu().data.numpy(),bias.cpu().data.numpy())
     else:
@@ -237,6 +256,17 @@ def _prelu(raw, input, weight):
     log.cnet.add_layer(layer)
     return x
 
+def _relu(raw, input, inplace=False):
+    # for threshold or prelu
+    x = raw(input, inplace)
+    bottom_blobs=[log.blobs(input)]
+    name = log.add_layer(name='relu')
+    log.add_blobs([x], name='relu_blob')
+    layer = caffe_net.Layer_param(name=name, type='ReLU',
+                                  bottom=bottom_blobs, top=[log.blobs(x)])
+    log.cnet.add_layer(layer)
+    return x
+
 def _softmax(raw, input, dim=None, _stacklevel=3):
     # for F.softmax
     x=raw(input, dim=dim)
@@ -384,12 +414,14 @@ class Rp(object):
 
 
 F.conv2d=Rp(F.conv2d,_conv2d)
+F.conv_transpose2d=Rp(F.conv_transpose2d,_conv_transpose2d)
 F.linear=Rp(F.linear,_linear)
 F.max_pool2d=Rp(F.max_pool2d,_max_pool2d)
 F.avg_pool2d=Rp(F.avg_pool2d,_avg_pool2d)
 F.dropout=Rp(F.dropout,_dropout)
 F.threshold=Rp(F.threshold,_threshold)
 F.prelu=Rp(F.prelu,_prelu)
+F.relu=Rp(F.relu,_relu)
 F.batch_norm=Rp(F.batch_norm,_batch_norm)
 F.softmax=Rp(F.softmax,_softmax)
 
